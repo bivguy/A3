@@ -38,6 +38,10 @@ void mergeIntoFile (MyDB_TableReaderWriter &table_rw, vector <MyDB_RecordIterato
 	}
 }
 
+// helper function.  Gets two iterators, leftIter and rightIter.  It is assumed that these are iterators over
+// sorted lists of records.  This function then merges all of those records into a list of anonymous pages,
+// and returns the list of anonymous pages to the caller.  The resulting list of anonymous pages is sorted.
+// Comparisons are performed using comparator, lhs, rhs
 vector <MyDB_PageReaderWriter> mergeIntoList (
 	MyDB_BufferManagerPtr parent, 
 	MyDB_RecordIteratorAltPtr leftIter, 
@@ -46,14 +50,75 @@ vector <MyDB_PageReaderWriter> mergeIntoList (
 	MyDB_RecordPtr lhs, 
 	MyDB_RecordPtr rhs
 ) {
+	// define the comparator
+
 	// Create anonymous pages to be used
-	vector<
-	parent->getPage();
+	vector<MyDB_PageReaderWriter> anonPages;
+	
+	anonPages.push_back(MyDB_PageReaderWriter(parent->getPage()));
 
+	leftIter->getCurrent(lhs);
+	rightIter->getCurrent(rhs);
 
+	bool leftAdvance;
+	while (true) {
+		// compare the left and right iterators
+		if (comparator) {
+			addRecord(lhs, anonPages, parent);
+			leftAdvance = true;
 
-	return vector <MyDB_PageReaderWriter> (); 
+		} else {
+			addRecord(rhs, anonPages, parent);
+			leftAdvance = false;
+		}
+
+		// advance to the next record if valid
+		if (leftAdvance) {
+			if (!advanceRecord(leftIter, lhs)) {
+				break;
+			}
+		} else {
+			if (!advanceRecord(rightIter, rhs)) {
+					break;
+			}
+		}
+	}
+
+	// add the remainder of the records from the leftover iterator
+
+	// means that there right iterator still has records to be added
+	if (leftAdvance) {
+		addRecord(rhs, anonPages, parent);
+		while (advanceRecord(rightIter, rhs)) {
+			addRecord(rhs, anonPages, parent);
+		}
+	} else { // means that there left iterator still has records to be added
+		addRecord(lhs, anonPages, parent);
+		while (advanceRecord(leftIter, lhs)) {
+			addRecord(lhs, anonPages, parent);
+		}
+	}
+
+	return anonPages; 
 } 
+
+void addRecord(MyDB_RecordPtr record, vector<MyDB_PageReaderWriter> &anonPages, MyDB_BufferManagerPtr parent) {
+	// check if we can append it
+	if (!anonPages.back().append(record)) {
+		anonPages.push_back(MyDB_PageReaderWriter(parent->getPage()));
+		anonPages.back().append(record);
+	}
+}
+
+bool advanceRecord(MyDB_RecordIteratorAltPtr iterator, MyDB_RecordPtr record) {
+	// check if can advance this next record
+	if (iterator->advance()) {
+		iterator->getCurrent(record);
+		return true;
+	} 
+
+	return false;
+}
 	
 void sort (int, MyDB_TableReaderWriter &, MyDB_TableReaderWriter &, function <bool ()>, MyDB_RecordPtr, MyDB_RecordPtr) {} 
 
