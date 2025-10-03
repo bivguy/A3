@@ -38,8 +38,22 @@ void mergeIntoFile (MyDB_TableReaderWriter &table_rw, vector <MyDB_RecordIterato
 	}
 }
 
-vector <MyDB_PageReaderWriter> mergeIntoList (MyDB_BufferManagerPtr, MyDB_RecordIteratorAltPtr, MyDB_RecordIteratorAltPtr, function <bool ()>, 
-	MyDB_RecordPtr, MyDB_RecordPtr) {return vector <MyDB_PageReaderWriter> (); } 
+vector <MyDB_PageReaderWriter> mergeIntoList (
+	MyDB_BufferManagerPtr parent, 
+	MyDB_RecordIteratorAltPtr leftIter, 
+	MyDB_RecordIteratorAltPtr rightIter, 
+	function <bool ()> comparator, 
+	MyDB_RecordPtr lhs, 
+	MyDB_RecordPtr rhs
+) {
+	// Create anonymous pages to be used
+	vector<
+	parent->getPage();
+
+
+
+	return vector <MyDB_PageReaderWriter> (); 
+} 
 	
 void sort (int, MyDB_TableReaderWriter &, MyDB_TableReaderWriter &, function <bool ()>, MyDB_RecordPtr, MyDB_RecordPtr) {} 
 
