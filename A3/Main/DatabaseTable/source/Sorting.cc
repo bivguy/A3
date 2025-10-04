@@ -5,6 +5,7 @@
 #include "MyDB_PageReaderWriter.h"
 #include "MyDB_TableRecIterator.h"
 #include "MyDB_TableRecIteratorAlt.h"
+#include "MyDB_PageListIteratorAlt.h"
 #include "MyDB_TableReaderWriter.h"
 #include "Sorting.h"
 
@@ -55,7 +56,7 @@ vector <MyDB_PageReaderWriter> mergeIntoList (
 	// Create anonymous pages to be used
 	vector<MyDB_PageReaderWriter> anonPages;
 	
-	anonPages.push_back(MyDB_PageReaderWriter(parent->getPage()));
+	anonPages.push_back(MyDB_PageReaderWriter(*parent));
 
 	leftIter->getCurrent(lhs);
 	rightIter->getCurrent(rhs);
@@ -105,7 +106,7 @@ vector <MyDB_PageReaderWriter> mergeIntoList (
 void addRecord(MyDB_RecordPtr record, vector<MyDB_PageReaderWriter> &anonPages, MyDB_BufferManagerPtr parent) {
 	// check if we can append it
 	if (!anonPages.back().append(record)) {
-		anonPages.push_back(MyDB_PageReaderWriter(parent->getPage()));
+		anonPages.push_back(MyDB_PageReaderWriter(*parent));
 		anonPages.back().append(record);
 	}
 }
@@ -120,6 +121,63 @@ bool advanceRecord(MyDB_RecordIteratorAltPtr iterator, MyDB_RecordPtr record) {
 	return false;
 }
 	
-void sort (int, MyDB_TableReaderWriter &, MyDB_TableReaderWriter &, function <bool ()>, MyDB_RecordPtr, MyDB_RecordPtr) {} 
+// performs a TPMMS of the table sortMe.  The results are written to sortIntoMe.  The run 
+// size for the first phase of the TPMMS is given by runSize.  Comarisons are performed 
+// using comparator, lhs, rhs
+void sort (
+	int runSize,
+	MyDB_TableReaderWriter &sortMe, 
+	MyDB_TableReaderWriter &sortIntoMe, 
+	function <bool ()> comparator, 
+	MyDB_RecordPtr lhs, 
+	MyDB_RecordPtr rhs) {
+		MyDB_BufferManagerPtr bufferMgr = sortIntoMe.getBufferMgr();
+		
+		int numberRuns = sortMe.getNumPages() / runSize;
+		vector<vector<MyDB_PageReaderWriter>> sortedRuns;
+
+		// go through each run of pages
+		for (int r = 0; r < numberRuns; r++) {
+			vector<vector<MyDB_PageReaderWriter>> sortedPages;
+			// load a run of pages into RAM, sorting each page 
+			for (int i = r*runSize; i < runSize; i++)
+			{
+				MyDB_PageReaderWriter pageRW = sortMe[i];			
+
+				MyDB_PageReaderWriterPtr sortedPage = pageRW.sort(comparator, lhs, rhs);
+				
+				// add this to the list of vectors
+				vector<MyDB_PageReaderWriter> sortedPageVector;
+				sortedPageVector.push_back(*sortedPage);
+				sortedPages.push_back(sortedPageVector);
+			}
+			vector<vector<MyDB_PageReaderWriter>> sortedRun;
+			// after sorting the pages in the run, sort the entire run by merging the adjacent pairs of lists
+			while (sortedRun.size() != 1) {
+				sortedRun.clear();
+				for (int i = 0; i < 10; i+=2) {
+					// create the page list iterators
+					MyDB_RecordIteratorAltPtr leftIter = getIteratorAlt(sortedPages[i]);
+					MyDB_RecordIteratorAltPtr rightIter = getIteratorAlt(sortedPages[i+1]);
+
+					// merge the two lists into one sorted list
+					vector<MyDB_PageReaderWriter> mergedSortedList = mergeIntoList(bufferMgr, leftIter, rightIter, comparator, lhs, rhs);
+					sortedRun.push_back(mergedSortedList);
+				}
+				// change the sorted pages list to the ones we just added
+				sortedPages = sortedRun;
+			}
+			// at this point, the only thing in sortedRun is one list
+			sortedRuns.push_back(sortedRun[0]);
+		}
+
+		// create a list of iterators for each list
+		vector <MyDB_RecordIteratorAltPtr> mergeUs;
+		for (int i = 0; i < sortedRuns.size(); i ++) {
+			mergeUs.push_back(getIteratorAlt(sortedRuns[i]));
+		}
+
+		mergeIntoFile(sortIntoMe, mergeUs, comparator, lhs, rhs);
+} 
 
 #endif

@@ -30,7 +30,14 @@ vector <MyDB_PageReaderWriter> mergeIntoList
 // of records.  This function then merges all of those records and appends them to the file sortIntoMe.  If
 // all of the iterators are over sorted lists of records, then all of the records appended onto the end of
 // sortIntoMe will be sorted.  Comparisons are performed using comparator, lhs, rhs
-void mergeIntoFile (MyDB_TableReaderWriter &sortIntoMe, vector <MyDB_RecordIteratorAltPtr> &mergeUs,
-        function <bool ()> comparator, MyDB_RecordPtr lhs, MyDB_RecordPtr rhs);
+void mergeIntoFile (
+        MyDB_TableReaderWriter &sortIntoMe, 
+        vector <MyDB_RecordIteratorAltPtr> &mergeUs,
+        function <bool ()> comparator, 
+        MyDB_RecordPtr lhs, 
+        MyDB_RecordPtr rhs);
 
+void addRecord(MyDB_RecordPtr record, vector<MyDB_PageReaderWriter> &anonPages, MyDB_BufferManagerPtr parent);
+
+bool advanceRecord(MyDB_RecordIteratorAltPtr iterator, MyDB_RecordPtr record);
 #endif
